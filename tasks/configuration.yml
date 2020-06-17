@@ -2,7 +2,7 @@
 - name: ensure rsyncd is configured
   template:
     src: etc/rsyncd.conf.j2
-    dest: etc/rsyncd.conf
+    dest: /etc/rsyncd.conf
     owner: root
     group: root
     mode: 0644
