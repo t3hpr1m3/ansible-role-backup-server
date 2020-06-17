@@ -1,0 +1,13 @@
+---
+image: jdubz/ci-docker-ansible:latest
+
+services:
+  - docker:19.03.1-dind
+
+molecule:
+  stage: test
+  before_script:
+    - apk add --update python python-dev py-pip py3-pip
+    - ansible --version
+  script:
+    - molecule test --all

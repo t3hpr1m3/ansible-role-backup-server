@@ -1,0 +1,7 @@
+---
+dubzland_backup_server_root: "/mnt/backups"
+
+#
+# - name: client1.example.com
+#   ip: 10.0.20.3
+dubzland_backup_server_clients: []

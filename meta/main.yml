@@ -1,0 +1,17 @@
+galaxy_info:
+  role_name: backup_server
+  author: t3hpr1m3
+  description: rsyncd based backup server
+  company: Cedar House Labs
+  license: MIT
+  min_ansible_version: 2.2
+  platforms:
+    - name: Debian
+      versions:
+        - stretch
+        - buster
+  galaxy_tags:
+    - backup
+    - rsync
+
+dependencies: []

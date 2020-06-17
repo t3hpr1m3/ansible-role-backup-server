@@ -1,0 +1,16 @@
+pid file = /var/run/rsyncd.pid
+lock file = /var/run/rsyncd.lock
+syslog facility = local5
+max connections = 4
+uid = root
+gid = root
+use chroot = yes
+numeric ids = yes
+{% for client in dubzland_backup_server_clients %}
+
+[{{ client }}]
+path = {{ dubzland_backup_server_root }}/{{ client }}
+comment = Backups for {{ client }}
+read only = no
+write only = yes
+{% endfor %}

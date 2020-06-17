@@ -1,0 +1,13 @@
+---
+- include_tasks: variables.yml
+- include_tasks: packages.yml
+- include_tasks: configuration.yml
+
+- name: ensure rsyncd is running
+  service:
+    name: rsync
+    state: started
+
+- meta: flush_handlers
+
+- include_tasks: clients.yml
