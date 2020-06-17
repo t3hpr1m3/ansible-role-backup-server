@@ -1,5 +1,5 @@
 ---
-image: jdubz/ci-docker-ansible:latest
+image: jdubz/ci-docker-ansible:1.0.1
 
 services:
   - docker:19.03.1-dind
