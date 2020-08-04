@@ -8,9 +8,12 @@ use chroot = yes
 numeric ids = yes
 {% for client in dubzland_backup_server_clients %}
 
-[{{ client }}]
-path = {{ dubzland_backup_server_root }}/{{ client }}
-comment = Backups for {{ client }}
-read only = no
-write only = yes
+[{{ client.name }}]
+  path = {{ dubzland_backup_server_root }}/{{ client.name }}
+  comment = Backups for {{ client.name }}
+  read only = no
+  write only = no
+  list = false
+  hosts allow = {{ client.ipv4_address }}
+  hosts deny = 0.0.0.0/0
 {% endfor %}

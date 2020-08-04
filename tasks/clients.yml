@@ -1,7 +1,7 @@
 ---
 - name: ensure target directories exist for all clients
   file:
-    path: "{{ dubzland_backup_server_root }}/{{ item }}"
+    path: "{{ dubzland_backup_server_root }}/{{ item.name }}"
     state: directory
     owner: root
     group: root
