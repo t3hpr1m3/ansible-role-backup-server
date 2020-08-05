@@ -1,13 +1,61 @@
 ---
-image: jdubz/ci-docker-ansible:1.0.1
+image: jdubz/ci-docker-ansible:19.03
 
 services:
   - docker:19.03.1-dind
 
-molecule:
+variables:
+  BASH_ENV: /root/.bashrc
+
+.molecule:
   stage: test
+  cache:
+    paths:
+      - .tox
   before_script:
-    - apk add --update python python-dev py-pip py3-pip
-    - ansible --version
+    - pyenv local 2.7.18 3.6.11 3.7.7 3.8.3
+    - pip3 install tox tox-pyenv
   script:
-    - molecule test --all
+    - tox
+
+debian9:
+  extends: .molecule
+  variables:
+    MOLECULE_PLATFORM: debian-stretch
+    MOLECULE_IMAGE: debian:stretch-slim
+
+debian10:
+  extends: .molecule
+  variables:
+    MOLECULE_PLATFORM: debian-buster
+    MOLEDULE_IMAGE: debian:buster-slim
+
+ubuntu1604:
+  extends: .molecule
+  variables:
+    MOLECULE_PLATFORM: ubuntu-xenial
+    MOLEDULE_IMAGE: ubuntu:xenial
+
+ubuntu1804:
+  extends: .molecule
+  variables:
+    MOLECULE_PLATFORM: ubuntu-bionic
+    MOLEDULE_IMAGE: ubuntu:bionic
+
+ubuntu1910:
+  extends: .molecule
+  variables:
+    MOLECULE_PLATFORM: ubuntu-eoan
+    MOLECULE_IMAGE: ubuntu:eoan
+
+ubuntu2004:
+  extends: .molecule
+  variables:
+    MOLECULE_PLATFORM: ubuntu-focal
+    MOLECULE_IMAGE: ubuntu:focal
+
+ubuntu2010:
+  extends: .molecule
+  variables:
+    MOLECULE_PLATFORM: ubuntu-groovy
+    MOLECULE_IMAGE: ubuntu:groovy

@@ -2,6 +2,13 @@
 - name: Prepare
   hosts: all
   tasks:
-    - name: update the package cache
+    - name: ensure the locales and tzdata packages are installed
       package:
+        name:
+          - locales
+          - tzdata
         update_cache: true
+    - name: ensure the UTF-8 locale is present
+      locale_gen:
+        name: en_US.UTF-8
+        state: present

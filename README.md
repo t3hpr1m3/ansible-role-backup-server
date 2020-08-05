@@ -1,5 +1,10 @@
 # Ansible Role: Backup Server
-[![Gitlab pipeline status (self-hosted)](https://git.dubzland.net/dubzland/ansible-role-backup-server/badges/master/pipeline.svg)](https://git.dubzland.net/dubzland/ansible-role-backup-server)
+[![Gitlab pipeline status (self-hosted)](https://img.shields.io/gitlab/pipeline/dubzland/ansible-role-backup-server/main?gitlab_url=https%3A%2F%2Fgit.dubzland.net)](https://git.dubzland.net/dubzland/ansible-role-backup-server/pipelines)
+[![Ansible role](https://img.shields.io/ansible/role/50086)](https://galaxy.ansible.com/dubzland/backup_server)
+[![Ansible role downloads](https://img.shields.io/ansible/role/d/50086)](https://galaxy.ansible.com/dubzland/backup_server)
+[![Ansible Quality Score](https://img.shields.io/ansible/quality/50086)](https://galaxy.ansible.com/dubzland/backup_server)
+[![Liberapay patrons](https://img.shields.io/liberapay/patrons/jdubz)](https://liberapay.com/jdubz/donate)
+[![Liberapay receiving](https://img.shields.io/liberapay/receives/jdubz)](https://liberapay.com/jdubz/donate)
 
 Sets up an rsyncd-based backup target.  This role is highly opinionated, and
 therefore probably not fit for mass consumption.
