@@ -1,3 +1,6 @@
+---
+dependencies: []
+
 galaxy_info:
   role_name: backup_server
   author: t3hpr1m3
@@ -10,8 +13,13 @@ galaxy_info:
       versions:
         - stretch
         - buster
+    - name: Ubuntu
+      versions:
+        - xenial
+        - bionic
+        - eoan
+        - focal
+        - groovy
   galaxy_tags:
     - backup
     - rsync
-
-dependencies: []

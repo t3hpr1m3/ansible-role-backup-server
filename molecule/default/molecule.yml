@@ -8,7 +8,7 @@ platforms:
     image: "jdubz/docker-ci-${MOLECULE_IMAGE:-debian:stretch-slim}"
     pre_build_image: true
     privileged: true
-    override_command: False
+    override_command: false
     tmpfs:
       - /run
       - /run/lock
