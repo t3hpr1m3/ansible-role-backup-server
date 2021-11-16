@@ -1,7 +1,41 @@
 ---
-dubzland_backup_server_root: "/mnt/backups"
+# Path information
+dubzland_backup_server_data: "/srv/backups"
+dubzland_backup_server_bin: "/usr/local/bin"
+dubzland_backup_server_etc: "/etc/backups"
+dubzland_backup_server_lib: "/usr/local/lib/backups"
+dubzland_backup_server_log: "/var/log/backups"
+dubzland_backup_server_run: "/var/run/backups"
+dubzland_backup_server_var: "/var/lib/backups"
+
+# Credentials
+dubzland_backup_server_user: "backup-user"
+dubzland_backup_server_group: "backup-group"
+dubzland_backup_server_private_key: ""
+
+# Job attributes
+dubzland_backup_server_job_name: "network backups"
+dubzland_backup_server_frequency: 5m
+
+# Log rotation
+dubzland_backup_server_logrotate_enabled: true
+dubzland_backup_server_logrotate_packages:
+  - logrotate
+dubzland_backup_server_logrotate_config: |
+  weekly
+  rotate 3
+  size 10M
+  compress
+  delaycompress
 
 #
-# - name: client1.example.com
-#   ipv4_address: 10.0.20.3
-dubzland_backup_server_clients: []
+# - name: client1
+#   address: client1.example.com
+#   user: myuser
+#   backups:
+#     - directory: /home/myuser
+#       keep: 7
+#       frequency: daily
+#       exclude:
+#         - .cache
+dubzland_backup_server_targets: []

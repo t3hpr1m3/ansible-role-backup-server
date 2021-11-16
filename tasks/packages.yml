@@ -3,3 +3,9 @@
   package:
     name: "{{ dubzland_backup_server_packages }}"
     state: present
+
+- name: ensure logrotate packages are installed
+  package:
+    name: "{{ dubzland_backup_server_logrotate_packages }}"
+    state: present
+  when: dubzland_backup_server_logrotate_enabled | bool

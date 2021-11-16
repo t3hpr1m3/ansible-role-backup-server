@@ -1,10 +1,35 @@
 ---
-- name: ensure rsyncd is configured
+- name: ensure the required directories exist
+  file:
+    path: "{{ item.path }}"
+    owner: "{{ dubzland_backup_server_user }}"
+    group: "{{ dubzland_backup_server_group }}"
+    mode: "{{ item.mode }}"
+    state: directory
+  loop:
+    - { path: "{{ dubzland_backup_server_etc }}", mode: 0600 }
+    - { path: "{{ dubzland_backup_server_lib }}", mode: 0600 }
+    - { path: "{{ dubzland_backup_server_log }}", mode: 0600 }
+    - { path: "{{ dubzland_backup_server_run }}", mode: 0600 }
+    - { path: "{{ dubzland_backup_server_var }}", mode: 0600 }
+
+- name: ensure the backup system is configured
   template:
-    src: etc/rsyncd.conf.j2
-    dest: /etc/rsyncd.conf
-    owner: root
-    group: root
+    src: etc/backups.json.j2
+    dest: "{{ dubzland_backup_server_etc }}/backups.json"
+    owner: "{{ dubzland_backup_server_user }}"
+    group: "{{ dubzland_backup_server_group }}"
     mode: 0644
-  notify:
-    - restart rsyncd
+
+- name: ensure log rotation is configured
+  blockinfile:
+    path: "{{ dubzland_backup_server_logrotate_path }}"
+    block: |
+      {{ dubzland_backup_server_log_file }} {
+      {{ dubzland_backup_server_logrotate_config | indent(8, True) }}
+      }
+    create: true
+    owner: "{{ dubzland_backup_server_user }}"
+    group: "{{ dubzland_backup_server_group }}"
+    mode: 0644
+  when: dubzland_backup_server_logrotate_enabled | bool

@@ -1,0 +1,27 @@
+version: '3'
+services:
+  test:
+    image: jdubz/molecule-testing:1.0.0
+    working_dir: /work/ansible-role-backup-server/
+    command: tox
+    volumes:
+      - certs:/certs/client
+      - ./:/work/ansible-role-backup-server/
+      - .cache:/root/.cache
+    depends_on:
+      - docker
+    networks:
+      - docker
+  docker:
+    image: docker:20.10-dind
+    privileged: yes
+    ports:
+      - 2375:2375
+    volumes:
+      - certs:/certs/client
+    networks:
+      - docker
+volumes:
+  certs:
+networks:
+  docker:

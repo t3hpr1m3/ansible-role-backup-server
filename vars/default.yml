@@ -1,3 +1,11 @@
 ---
 dubzland_backup_server_packages:
+  - cron
+  - jq
   - rsync
+  - sudo
+dubzland_backup_server_logrotate_packages:
+  - logrotate
+dubzland_backup_server_logrotate_path: >-
+  /etc/logrotate.d/
+  {{ dubzland_backup_server_job_name | regex_replace('\\s+', '_') }}

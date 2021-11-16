@@ -2,6 +2,17 @@
 - name: Converge
   hosts: all
   tasks:
-    - name: "Include ansible-role-backup-server"
+    - name: "Include dubzland.backup_server"
       include_role:
-        name: "ansible-role-backup-server"
+        name: "dubzland.backup_server"
+      vars:
+        dubzland_backup_server_targets:
+          - name: apollo
+            address: apollo.dubzland.net
+            user: backup-user
+            backups:
+              - directory: /home
+                keep: 7
+                frequency: daily
+                exclude:
+                  - .cache

@@ -3,11 +3,31 @@
 - include_tasks: packages.yml
 - include_tasks: configuration.yml
 
-- name: ensure rsyncd is running
-  service:
-    name: rsync
-    state: started
+- name: ensure the required scripts are present
+  copy:
+    src: "{{ role_path }}/files/{{ item }}"
+    dest: "{{ dubzland_backup_server_bin }}/{{ item }}"
+    owner: "{{ dubzland_backup_server_user }}"
+    group: "{{ dubzland_backup_server_group }}"
+    mode: 0755
+  loop:
+    - incremental_backup
+    - process_backups
 
-- meta: flush_handlers
+- name: ensure the function libraries are present
+  copy:
+    src: "{{ role_path }}/files/functions.bash"
+    dest: "{{ dubzland_backup_server_lib }}/functions.bash"
+    owner: "{{ dubzland_backup_server_user }}"
+    group: "{{ dubzland_backup_server_group }}"
+    mode: 0755
 
-- include_tasks: clients.yml
+- name: ensure the backup job is scheduled
+  cron:
+    name: "{{ dubzland_backup_server_job_name }}"
+    minute: "{{ dubzland_backup_server_frequency | frequency_to_cron('m') }}"
+    hour: "{{ dubzland_backup_server_frequency | frequency_to_cron('h') }}"
+    day: "{{ dubzland_backup_server_frequency | frequency_to_cron('d') }}"
+    job: >-
+      {{ dubzland_backup_server_bin }}/process_backups
+      -c {{ dubzland_backup_server_configuration_file }}

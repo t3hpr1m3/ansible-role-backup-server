@@ -1,0 +1,320 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+
+# set -x
+
+source "${BACKUP_SERVER_LIB}/core.bash"
+trap cleanup SIGINT SIGTERM ERR EXIT
+
+# # The name of our script
+script_name=$(basename $0)
+
+DRY_RUN=${DRY_RUN:-0}
+
+function usage {
+	cat <<EOF
+
+This script must be run with super-user privileges.
+
+Usage: $script_name [-hnv] [-e PATTERN [-e PATTERN]] [-i FILE] [-k KEEP] [-m MODE] [-r host] [-u USER] host directory
+
+Triggers a backup of the specified directory on the remote machine via rsync.
+
+Available options:
+
+	-h, --help             print this help and exit
+	-n, --dry-run          perform a trial run (without actually executing the backup)
+	-v, --verbose          print script debug info
+	-c, --config=FILE      path to the configuration file (default: /etc/backups.conf)
+	-e, --exclude=PATTERN  exclude files matching PATTERN
+	-i, --identity=FILE    path to an identity file used to authenticate
+	-k, --keep=COUNT       number of backups to keep
+	-m, --mode=MODE        mode to operate in (DAILY, WEEKLY, MONTHLY, ANNUALLY)
+	-u, --user=USER        remote user
+
+EOF
+}
+
+function main {
+	while backups::parse_params "hn" "$@"; do
+		shift $((OPTIND-1))
+
+		case "$OPT" in
+			h | help)
+				usage
+				exit 1
+				;;
+			n | dry-run)
+				DRY_RUN=1
+				;;
+			* )
+				usage
+				;;
+		esac
+	done
+	backups::init
+	backups::log::plain "BACKUP STARTED"
+	backups::log::debug "Parsed.  Config file: ${BACKUPS_CONFIG_FILE}"
+	backups::log::debug "Root: ${BACKUPS_CONFIG_ROOT}"
+	backups::log::debug "PID: ${BACKUPS_CONFIG_PID_FILE}"
+}
+
+main "$@"
+
+# perform_backups() {
+# 	local clients=$(find $configuration_root -maxdepth 1 -type f -name \*.json)
+# 	get_string() {
+# 		backup="$1"
+# 		key="$2"
+# 		value=$(echo "${backup}" | jq -r '(.'${key}')')
+# 		echo "${value}"
+# 	}
+# 	get_array() {
+# 		backup="$1"
+# 		key="$2"
+# 		value="$(echo "${backup}" | jq -r '(.'${key}') // empty')"
+# 		echo "${value}"
+# 	}
+# 	for client in ${clients[@]}; do
+# 		_debug "${YELLOW}$(basename ${client} .json)${NOFORMAT}:"
+# 		local backups=$(jq -c '(.backups) | .[] | select(.frequency == "'$mode'")' ${client})
+# 		for backup in ${backups[@]}; do
+# 			local directory="$(get_string "${backup}" directory)"
+# 			local user="$(get_string "${backup}" user)"
+# 			local identity_file="$(get_string "${backup}" identity_file)"
+# 			local keep="$(get_string "${backup}" keep)"
+# 			local exclude="$(get_array "${backup}" exclude)"
+
+# 			_debug "    ${BLUE}${directory}${NOFORMAT}:"
+
+# 			local backup_args=(-m ${mode})
+
+# 			if [[ -n "${configuration_file}" ]]; then
+# 				_debug "        ${YELLOW}configuration_file${NOFORMAT}:   ${configuration_file}"
+# 				backup_args+=(-c ${configuration_file})
+# 			fi
+
+# 			if [[ -n "${user}" ]]; then
+# 				_debug "        ${YELLOW}user${NOFORMAT}:          ${user}"
+# 				backup_args+=(-u ${user})
+# 			fi
+
+# 			if [[ -n "${identity_file}" ]]; then
+# 				_debug "        ${YELLOW}identity_file${NOFORMAT}: ${identity_file}"
+# 				backup_args+=(-i ${identity_file})
+# 			fi
+
+# 			if [[ -n "${keep}" ]]; then
+# 				_debug "        ${YELLOW}keep${NOFORMAT}:          ${keep}"
+# 				backup_args+=(-k ${keep})
+# 			fi
+
+# 			if [[ -n "${exclude}" ]]; then
+# 				readarray -t excludes < <(echo "${exclude}" | jq -r '.[]')
+# 				_debug "        ${YELLOW}excludes${NOFORMAT}:"
+# 				for e in "${excludes[@]}"; do
+# 					_debug "            ${RED}${e}${NOFORMAT}"
+# 					backup_args+=(--exclude=$e)
+# 				done
+# 			else
+# 				local excludes=()
+# 			fi
+
+# 			_debug "        ${YELLOW}verbose${NOFORMAT}:       ${verbose}"
+# 			if [[ $verbose -eq 1 ]]; then
+# 				backup_args+=(-v)
+# 			fi
+
+# 			_debug "        ${YELLOW}dry_run${NOFORMAT}:       ${dry_run}"
+# 			if [[ $dry_run -eq 1 ]]; then
+# 				backup_args+=(-n)
+# 			fi
+
+# 			backup_args+=($(basename ${client} .json))
+# 			backup_args+=(${directory})
+
+# 			cmd="${incremental_backup_script}"
+# 			_debug "        ${GREEN}command${NOFORMAT}:       ${cmd} ${backup_args[*]}"
+# 			$cmd ${backup_args[*]}
+# 			# rsync ${rsync_params[*]}
+# 		done
+# 	done
+# 	unset get_string get_array
+# }
+
+#=============================================================================
+# usage() {
+# 	exit 0
+# }
+
+# parse_params() {
+# 	while getopts "hnqvc:-:" OPT; do
+# 		if [ "$OPT" = "-" ]; then
+# 			OPT="${OPTARG%%=*}"
+# 			OPTARG="${OPTARG#$OPT}"
+# 			OPTARG="${OPTARG#=}"
+# 		fi
+
+# 		case "$OPT" in
+# 			c | config)
+# 				configuration_file="$OPTARG"
+# 				;;
+# 			h | help)
+# 				usage
+# 				exit 0
+# 				;;
+# 			n | dry-run)
+# 				dry_run=1
+# 				;;
+# 			q | quiet)
+# 				quiet=1
+# 				;;
+# 			v | verbose)
+# 				verbose=1
+# 				;;
+# 			*)
+# 				_log_parse_param "$OPT" "${OPTARG}"
+# 				;;
+# 		esac
+# 	done
+
+# 	shift $((OPTIND-1))
+# }
+
+# validate_params() {
+# 	if [[ ! -r "$configuration_file" ]]; then
+# 		error_exit "error: unable to open configuration file ($configuration_file)"
+# 	fi
+# }
+
+# load_configuration() {
+# 	backup_root="$(jq -r '.backup_root' $configuration_file)"
+# 	configuration_d="$(jq -r '.configuration_root' $configuration_file)"
+# 	incremental_backup_script="$(jq -r '.incremental_backup_script' $configuration_file)"
+# 	pid_file="$(jq -r '.pid_file' $configuration_file)"
+# }
+
+# check_existing() {
+# 	_debug "pid_file: ${pid_file}"
+# 	_warn "stale pid file"
+# 	if [[ -f ${pid_file} ]]; then
+# 		_debug "pid file exists"
+# 		local old_pid=$(cat ${pid_file})
+# 		_debug "old pid: ${old_pid}"
+# 		if [[ -d "/proc/${old_pid}" ]]; then
+# 			_debug "Backup already running...exiting"
+# 			exit 0
+# 		else
+# 			_debug "Stale backup pid"
+# 		fi
+# 	fi
+# }
+
+# update_pid() {
+# 	echo $$ >$pid_file
+# }
+
+# clear_pid() {
+# 	rm ${pid_file}
+# }
+
+# perform_backups() {
+# 	# for each client
+# 	local clients=$(jq -c '(.clients) | .[]' $configuration_file)
+# 	for client in ${clients[@]}; do
+# 		_debug "client: ${client}"
+# 		# Sync client configuration
+# 		# for each backup job
+# #         determine the last backup run time
+# #         if the last run time is never
+# #           backup
+# #         determine the next scheduled run time
+# #         if next scheduled run time is in the past
+# #           backup
+# 	done
+
+# }
+
+# sync_client_configuration() {
+# 	local client_name=$1
+# 	local client_address=$2
+# }
+
+# unset backup_root configuration_d configuration_file pid_file script_name
+
+# # The name of our script
+# script_name=$(basename $0)
+
+# # Path to store backups
+# backup_root=""
+
+# # Path to the client configurations
+# configuration_d=""
+
+# # Path to the configuration file
+# configuration_file=""
+
+# # File to write our pid to (will check for existing backup jobs
+# pid_file=""
+
+# sync_configs() {
+# 	echo ""
+# }
+
+# get_last_backup_runtime() {
+# 	echo ""
+# }
+
+# get_next_scheduled_runtime() {
+# 	echo ""
+# }
+
+# set_last_backup_runtime() {
+# 	echo ""
+# }
+
+# do_backup() {
+
+# 	local last_backup=get_last_backup_runtime
+# #         determine the last backup run time
+# #         if the last run time is never
+# #           backup
+# #         determine the next scheduled run time
+# #         if next scheduled run time is in the past
+# #           backup
+# }
+
+# main() {
+# 	setup_colors
+# 	parse_params "$@"
+# 	validate_params
+# 	load_configuration
+# 	_info "checking for existing backup job"
+# 	check_existing
+# 	_info "updating pid"
+# 	update_pid
+# 	perform_backups
+# 	sleep 10
+# 	clear_pid
+# }
+
+# main "$@"
+
+#############################################
+#
+# check for existing backup pid
+#   if present and running
+#     exit
+#   if absent or not running
+#     pull configurations from clients
+#     for each client
+#       for each backup
+#         determine the last backup run time
+#         if the last run time is never
+#           backup
+#         determine the next scheduled run time
+#         if next scheduled run time is in the past
+#           backup
+
+# vim: filetype=sh ts=4 sts=4 sw=4 noet

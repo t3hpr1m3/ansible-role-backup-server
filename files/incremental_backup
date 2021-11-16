@@ -1,0 +1,277 @@
+#!/usr/bin/env bash
+
+set -Eeuo pipefail
+trap cleanup SIGINT SIGTERM ERR EXIT
+
+source {{ dubzland_backup_server_lib }}/functions.bash
+
+# The name of our script
+script_name=$(basename $0)
+
+usage() {
+	cat <<EOF
+
+This script must be run with super-user privileges.
+
+Usage: $script_name [-hnv] [-e PATTERN [-e PATTERN]] [-i FILE] [-k KEEP] [-m MODE] [-r host] [-u USER] host directory
+
+Triggers a backup of the specified directory on the remote machine via rsync.
+
+Available options:
+
+	-h, --help             print this help and exit
+	-n, --dry-run          perform a trial run (without actually executing the backup)
+	-v, --verbose          print script debug info
+	-c, --config=FILE      path to the configuration file (default: /etc/backups.conf)
+	-e, --exclude=PATTERN  exclude files matching PATTERN
+	-i, --identity=FILE    path to an identity file used to authenticate
+	-k, --keep=COUNT       number of backups to keep
+	-m, --mode=MODE        mode to operate in (DAILY, WEEKLY, MONTHLY, ANNUALLY)
+	-u, --user=USER        remote user
+
+EOF
+}
+
+parse_params() {
+	while getopts "hnvc:e:i:k:m:u:-:" OPT; do
+		if [ "$OPT" = "-" ]; then
+			OPT="${OPTARG%%=*}"
+			OPTARG="${OPTARG#$OPT}"
+			OPTARG="${OPTARG#=}"
+		fi
+
+		case "$OPT" in
+			c | config)
+				config_file="$OPTARG"
+				;;
+			e | exclude)
+				exclude+=("$OPTARG")
+				;;
+			h | help)
+				usage
+				exit 0
+				;;
+			i | identity)
+				identity_file="$OPTARG"
+				;;
+			k | keep)
+				keep="$OPTARG"
+				;;
+			m | mode)
+				mode="$OPTARG"
+				;;
+			n | dry-run)
+				dry_run=1
+				;;
+			v | verbose)
+				verbose=1
+				;;
+			u | user)
+				remote_user="$OPTARG"
+				;;
+			*)
+				;;
+		esac
+	done
+
+	shift $((OPTIND-1))
+
+	if [[ $# -gt 1 ]]; then
+		remote_host=$1
+		remote_dir=$(normalize_slashes $2)
+	fi
+}
+
+validate_params() {
+	if [[ ! -r "$config_file" ]]; then
+		error_exit "error: unable to open configuration file ($config_file)"
+	fi
+
+	source "$config_file"
+
+	backup_root=$(normalize_slashes $backup_root)
+
+	#
+	# Ensure a host was supplied
+	#
+	if [[ -z "$remote_host" ]]; then
+		error_exit "error: remote host (-r) is required"
+	fi
+
+	#
+	# Ensure a remote user was specified
+	#
+	if [[ -z "$remote_user" ]]; then
+		error_exit "error: remote user (-u) is required"
+	fi
+
+	#
+	# Ensure an identity file was specified
+	#
+	if [[ -z "$identity_file" ]]; then
+		error_exit "error: an identity file (-i) is required"
+	fi
+
+	if [[ ! -r "$identity_file" ]]; then
+		error_exit "error: either the identity file ($identity_file) doesn't exist, or the current user has no read access."
+	fi
+
+	#
+	# Ensure a valid mode was specified
+	#
+	case $mode in
+		daily | weekly | monthly | yearly )
+			;;
+		* )
+			if [[ -z "$mode" ]]; then
+				error_exit "error: mode (-m) is required"
+			else
+				error_exit "Invalid mode specified: ${mode} (must be one of daily,weekly,monthly,yearly)"
+			fi
+			;;
+	esac
+
+	#
+	# Ensure a remote directory was supplied
+	#
+	if [[ -z "$remote_dir" ]]; then
+		error_exit "error: remote directory is required"
+	fi
+
+	#
+	# Ensure remote directory is absolute
+	#
+	if [[ ! "$remote_dir" = /* ]]; then
+		error_exit "error: remote directory must be an absolute path"
+	fi
+
+	remote_dir=$(normalize_slashes "$remote_dir")
+}
+
+prepare_local() {
+	local host_root="${backup_root}/${remote_host}${remote_dir}"
+
+	# ensure the local directory tree exists
+	if [[ ! -d "${host_root}" ]]; then
+		mkdir -p "${host_root}"
+	fi
+
+	local target_root="${host_root}/${mode}.${timestamp}"
+	if [[ ! -d "${target_root}" ]]; then
+		mkdir -p "${target_root}"
+	fi
+}
+
+perform_backup() {
+	local prev_dir="${mode}.0"
+	local rsync_params=(-aRs)
+	rsync_params+=(--delete)
+	rsync_params+=(--delete-excluded)
+	rsync_params+=(--relative)
+	rsync_params+=(--link-dest="../${prev_dir}")
+
+	if [[ $verbose -eq 1 ]]; then
+		rsync_params+=(-v)
+		rsync_params+=(--info=progress2)
+	fi
+
+	if [[ $dry_run -eq 1 ]]; then
+		rsync_params+=(-n)
+	fi
+
+	if [[ ${#exclude[@]} -gt 0 ]]; then
+		for i in ${!exclude[@]}; do
+			rsync_params+=(--exclude=${exclude[i]})
+		done
+	fi
+
+	rsync_params+=(rsync://${remote_host}${remote_dir})
+	rsync_params+=(${backup_root}/${remote_host}${remote_dir}/${mode}.${timestamp})
+
+	debug rsync ${rsync_params[*]}
+	# rsync ${rsync_params[*]}
+}
+
+rotate_backups() {
+	local root="${backup_root}/${remote_host}${remote_dir}"
+
+	if [[ -d "${root}" ]]; then
+		local dirs=$(find $root -maxdepth 1 -type d -regextype sed -regex ".*/${mode}.[0-9]\{1,3\}" | sort -rn)
+		for dir in ${dirs[@]}; do
+			local old=$(basename ${dir})
+			# get the backup number
+			local idx=$(echo $old | sed "s/$mode.//")
+			if [[ $idx -ge $(($keep - 1)) ]]; then
+				debug "removing ${RED}$root/$old${NOFORMAT}"
+				rm -r "$root/$old"
+			else
+				debug "moving ${BLUE}$root/$old${NOFORMAT} to ${BLUE}$root/$mode.$(($idx + 1))${NOFORMAT}"
+				mv "$root/$old" "$root/$mode.$(($idx + 1))"
+			fi
+		done
+	fi
+
+	if [[ -d "${root}/$mode.$timestamp" ]]; then
+		debug "moving ${BLUE}$root/$mode.$timestamp${NOFORMAT} to ${BLUE}$root/$mode.0${NOFORMAT}"
+		mv "$root/$mode.$timestamp" "$root/$mode.0"
+	fi
+}
+
+unset backup_root config_file remote_host remote_user remote_dir identity_file \
+	dry_run verbose exclude mode keep timestamp
+
+# Location to store backups locally
+backup_root=""
+
+# Path to the configuration file
+config_file=""
+
+# Remote host to backup from
+remote_host=""
+
+# Remote user used to connect
+remote_user=""
+
+# Remote directory to be backed up
+remote_dir=""
+
+# Identity used to authenticate via ssh
+identity_file=""
+
+# Whether or not we should perform a trial run
+dry_run=0
+
+# Print more progress information
+verbose=0
+
+# List of exclude patterns for rsync
+exclude=()
+
+# Mode to operate in (daily, weekly, monthly, yearly)
+mode=""
+
+# Number of backups to keep
+keep=4
+
+# Timestamp for temporary backup folders
+timestamp="$(date '+%F.%H-%M-%S')"
+
+parse_params "$@"
+validate_params
+setup_colors
+
+debug "${YELLOW}remote_host:${NOFORMAT}     ${remote_host}"
+debug "${YELLOW}remote_user:${NOFORMAT}     ${remote_user}"
+debug "${YELLOW}remote_dir:${NOFORMAT}      ${remote_dir}"
+debug "${YELLOW}identity_file${NOFORMAT}    ${identity_file}"
+debug "${YELLOW}dry_run:${NOFORMAT}         ${dry_run}"
+debug "${YELLOW}exclude:${NOFORMAT}         [${exclude[*]}]"
+debug "${YELLOW}mode:${NOFORMAT}            ${mode}"
+debug "${YELLOW}keep:${NOFORMAT}            ${keep}"
+debug "${YELLOW}backup_root:${NOFORMAT}     ${backup_root}"
+
+prepare_local
+perform_backup
+rotate_backups
+
+# vim: filetype=sh ts=4 sts=4 sw=4 noet
